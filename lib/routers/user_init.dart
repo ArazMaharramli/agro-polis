@@ -3,15 +3,21 @@ import 'package:flutter/services.dart';
 class UserInit {
   
 
-  Future<bool> isRegistered() async {
+  Future<String> isRegistered() async {
     try {
       final storage = new FlutterSecureStorage();
+    
+          //  await storage.delete(key:"user_uid");
+    
       String userUID = await storage.read(key: "user_uid");
-     print("++++++++++++ ${userUID.toString()}");
-      return (userUID == null || userUID.isEmpty) ? false : true;
+      print("++++++++++++ ${userUID.toString()}");
+   
+          //  await storage.delete(key:"user_uid");
+    
+      return userUID;
     } on PlatformException catch (e) {
       print(e.toString());
-      return false;
+      return null;
     }
   }
 }

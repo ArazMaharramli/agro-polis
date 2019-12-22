@@ -1,4 +1,4 @@
-import 'package:agropolis/pages/sign_in.dart';
+import 'package:agropolis/pages/add_or_edit_user_details.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -14,8 +14,10 @@ class _SignUpPageState extends State<SignUpPage> {
   String phoneNo;
   String smsCode;
   String verificationId;
+  int _forceResendingCode;
+  final _scaffoldStateKey = new GlobalKey<ScaffoldState>();
 
-  Future<void> verifyNumber() async {
+  Future<void> verifyNumber({int forceResendingToken = null}) async {
     final PhoneCodeAutoRetrievalTimeout autoRetrieve = (String verID) {
       this.verificationId = verID;
 
@@ -32,22 +34,42 @@ class _SignUpPageState extends State<SignUpPage> {
 
     final PhoneCodeSent smsCodeSent = (String verID, [int forceCodeResend]) {
       this.verificationId = verID;
+      this._forceResendingCode = forceCodeResend;
       // signIn();
-      smsCodeDialog(context);
+      // smsCodeDialog(context);
     };
 
     final PhoneVerificationFailed verificationFailed =
         (AuthException exception) {
       print('$exception.message');
+      _scaffoldStateKey.currentState.showSnackBar(
+        SnackBar(
+          content: Text(
+            "Xəta baş verdi",
+            style: TextStyle(color: Colors.red),
+          ),
+          duration: Duration(seconds: 4),
+        ),
+      );
     };
-
-    await FirebaseAuth.instance.verifyPhoneNumber(
-        phoneNumber: this.phoneNo,
-        codeAutoRetrievalTimeout: autoRetrieve,
-        codeSent: smsCodeSent,
-        timeout: const Duration(seconds: 30),
-        verificationCompleted: verificationSuccess,
-        verificationFailed: verificationFailed);
+    if (forceResendingToken != null) {
+      await FirebaseAuth.instance.verifyPhoneNumber(
+          phoneNumber: "+994${this.phoneNo}",
+          codeAutoRetrievalTimeout: autoRetrieve,
+          codeSent: smsCodeSent,
+          timeout: const Duration(seconds: 30),
+          verificationCompleted: verificationSuccess,
+          verificationFailed: verificationFailed,
+          forceResendingToken: forceResendingToken);
+    } else {
+      await FirebaseAuth.instance.verifyPhoneNumber(
+          phoneNumber: "+994${this.phoneNo}",
+          codeAutoRetrievalTimeout: autoRetrieve,
+          codeSent: smsCodeSent,
+          timeout: const Duration(seconds: 30),
+          verificationCompleted: verificationSuccess,
+          verificationFailed: verificationFailed);
+    }
   }
 
   Future<bool> smsCodeDialog(BuildContext context) {
@@ -55,17 +77,28 @@ class _SignUpPageState extends State<SignUpPage> {
         context: context,
         barrierDismissible: false,
         builder: (BuildContext context) => AlertDialog(
-              title: Text("Enter SMS code"),
+              title: Text("SMS kodu daxil edin"),
               content: TextField(
-                keyboardType: TextInputType.number,
-                onChanged: (value) {
-                this.smsCode = value;
-              }),
+                  keyboardType: TextInputType.number,
+                  textAlign: TextAlign.center,
+                  maxLength: 6,
+                  style: TextStyle(
+                    fontSize: 30,
+                  ),
+                  decoration: InputDecoration(hintText: "- - - - - -"),
+                  onChanged: (value) {
+                    this.smsCode = value;
+                  }),
               actions: <Widget>[
+                FlatButton(
+                  child: Text("Yenidən göndər"),
+                  onPressed: () => verifyNumber(
+                      forceResendingToken: this._forceResendingCode),
+                ),
                 RaisedButton(
                   color: Colors.teal,
                   child: Text(
-                    "Done",
+                    "Tamam",
                     style: TextStyle(color: Colors.white),
                   ),
                   onPressed: () {
@@ -85,7 +118,7 @@ class _SignUpPageState extends State<SignUpPage> {
                     //   }
                     // });
                   },
-                )
+                ),
               ],
             ));
   }
@@ -98,10 +131,9 @@ class _SignUpPageState extends State<SignUpPage> {
     await FirebaseAuth.instance.signInWithCredential(credential).then((user) {
       var storage = new FlutterSecureStorage();
       storage.write(key: "user_uid", value: user.user.uid).then((onValue) {
-        Navigator.pushReplacement(context,
-            MaterialPageRoute(builder: (BuildContext context) {
-          return SignInPage();
-        }));
+        Navigator.of(context).pushReplacement(MaterialPageRoute(
+            builder: (BuildContext context) => AddOrEditUserDetails(
+                uid: user.user.uid, phoneNumber: user.user.phoneNumber)));
       });
     }).catchError((e) => print(e));
   }
@@ -109,35 +141,55 @@ class _SignUpPageState extends State<SignUpPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.teal,
-        title: Text("Sign In to AgroPolis"),
-      ),
-      body: ListView(
-        children: <Widget>[
-          Center(
-            child: Text("AgroPolis"),
-          ),
-          Padding(
-            padding: EdgeInsets.all(10),
-            child: TextField(
-              decoration: InputDecoration(hintText: "Enter phone number"),
-              keyboardType: TextInputType.phone,
-              onChanged: (value) {
-                this.phoneNo = value;
-              },
+      key: _scaffoldStateKey,
+      extendBody: true,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Padding(
+              padding: EdgeInsets.all(24.0),
+              child: ListView(
+                shrinkWrap: true,
+                children: <Widget>[
+                  TextField(
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      hintText: "00 000 0000",
+                      prefix: Text(
+                        "+994",
+                        style: TextStyle(color: Colors.black),
+                      ),
+                      contentPadding:
+                          EdgeInsets.fromLTRB(20.00, 10.00, 20.00, 10.00),
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.phone,
+                    onChanged: (value) {
+                      this.phoneNo = value;
+                      print("phone number is: " + value);
+                    },
+                  ),
+                  RaisedButton(
+                    color: Colors.teal,
+                    onPressed: verifyNumber,
+                    child: Text(
+                      "Təstiqlə",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  )
+                ],
+              ),
             ),
-          ),
-          RaisedButton(
-            color: Colors.teal,
-            onPressed: verifyNumber,
-            child: Text(
-              "Verify",
-              style: TextStyle(color: Colors.white),
-            ),
-          )
-        ],
+          ],
+        ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _scaffoldStateKey.currentState.dispose();
+    super.dispose();
   }
 }
