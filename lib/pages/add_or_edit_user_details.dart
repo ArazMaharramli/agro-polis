@@ -135,7 +135,7 @@ class _AddOrEditUserDetailsState extends State<AddOrEditUserDetails> {
                             .then((onValue) {
                           Navigator.of(context).pushAndRemoveUntil(
                             MaterialPageRoute(builder: (context) {
-                              return new MyHomePage();
+                              return new MyHomePage(uid:widget.uid);
                             }),
                             ModalRoute.withName('/'),
                           );
